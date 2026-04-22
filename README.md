@@ -226,4 +226,19 @@ A few sentences about what you learned:
 - How did building this change how you think about real music recommenders
 - Where do you think human judgment still matters, even if the model seems "smart"
 
-![alt text](image.png)
+![Music recommender CLI output](image.png)
+
+    # UserProfile(favorite_genre="pop", favorite_mood="sad", target_energy=0.9, likes_acoustic=False)
+![Conflicting energy and mood case](image-1.png)
+
+    # UserProfile(favorite_genre="bossa nova", favorite_mood="happy", target_energy=0.5, likes_acoustic=True)
+![Genre that doesn't exist case](image-2.png)
+
+    # UserProfile(favorite_genre="rock", favorite_mood="angry", target_energy=0.8, likes_acoustic=True)
+![Contradictory preferences case](image-3.png)
+
+    # UserProfile(favorite_genre="jazz", favorite_mood="chill", target_energy=0.0, likes_acoustic=True)
+![Energy preference 0.00 case](image-4.png)
+    
+
+  
