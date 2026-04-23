@@ -77,15 +77,17 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     energy_similarity = 1.0 - abs(song['energy'] - target_energy)
     acousticness_similarity = 1.0 - abs(song['acousticness'] - target_acousticness)
 
-    score = (0.45 * genre_match) + (0.25 * mood_match) + (0.15 * energy_similarity) + (0.15 * acousticness_similarity)
+    # Experimental weight shift: genre halved (0.45→0.225), energy doubled (0.15→0.30),
+    # acousticness raised (0.15→0.225) to keep weights summing to 1.0
+    score = (0.225 * genre_match) + (0.25 * mood_match) + (0.30 * energy_similarity) + (0.225 * acousticness_similarity)
 
     reasons = []
     if genre_match:
-        reasons.append(f"genre match +0.45 ({song['genre']})")
+        reasons.append(f"genre match +0.225 ({song['genre']})")
     if mood_match:
         reasons.append(f"mood match +0.25 ({song['mood']})")
-    reasons.append(f"energy similarity +{0.15 * energy_similarity:.2f} (song: {song['energy']}, target: {target_energy})")
-    reasons.append(f"acousticness similarity +{0.15 * acousticness_similarity:.2f} (song: {song['acousticness']}, target: {target_acousticness})")
+    reasons.append(f"energy similarity +{0.30 * energy_similarity:.2f} (song: {song['energy']}, target: {target_energy})")
+    reasons.append(f"acousticness similarity +{0.225 * acousticness_similarity:.2f} (song: {song['acousticness']}, target: {target_acousticness})")
 
     return score, reasons
 
