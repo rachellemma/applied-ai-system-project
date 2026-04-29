@@ -215,44 +215,11 @@ Hardcoding credentials in source code is a security risk — anyone who forks or
 
 ---
 
-## Reflection: AI Responsibility & Collaboration
+## Reflection
 
 Building VibeMatch taught me that the hardest problems in AI systems are not the ones that produce errors — they are the ones that produce wrong answers confidently. The original recommender never crashed. It always returned a full list. It looked like it was working. But Profile 4 showed that a system can be functionally correct (it followed all its rules) and still completely fail the user (zero jazz songs for a jazz fan). Adding the AI reliability layer was a direct response to that insight: if the system cannot always catch its own blind spots, at least it can explain them.
 
-### Limitations & Biases
-
-- **Dataset imbalance**: Eight of twenty-five songs are R&B; jazz, blues, classical, and reggae each have one song. This skew means R&B users will always get better recommendations than jazz fans, regardless of how good the algorithm is. Dataset quality shapes the output before the weights ever run.
-- **Binary genre/mood matching**: My system uses exact string matching (genre == "jazz"). In reality, genres are fuzzy categories. A user who likes "indie rock" probably also likes "alternative rock," but my system scores both as 0. Fuzzy matching would help, but adds complexity.
-- **Energy floor problem**: The lowest-energy songs in the catalog still have energy ~0.35. A user setting `target_energy: 0.0` (very chill) can never score perfectly on the energy signal because the songs aren't actually that low-energy. Real datasets would need broader ranges.
-- **Catalog size**: Twenty-five songs is too small. Real recommenders have millions of tracks, which smooths out imbalances and gives users more actual choice.
-
-### Potential for Misuse & Prevention
-
-- **Filter bubble risk**: If weighted heavily toward one signal (e.g., 80% genre), the system could trap users in narrow musical niches by always recommending the same few artists.
-  - *Prevention*: Keep weights balanced and document them clearly (I did this). Encourage users to experiment with different preference profiles.
-- **Exploitative targeting**: An AI recommender could learn that certain demographic groups will pay for "premium" music subscriptions and deliberately recommend lower-quality songs to non-premium users.
-  - *Prevention*: Audit recommendation fairness across user segments. Don't condition weights on user demographics.
-- **Silent manipulation**: The original system did this unintentionally—users requesting jazz got zero jazz with no warning. Guardrails catch and surface this.
-  - *Prevention*: Always explain failures, never silently fall back. Use a reliability layer (what this project does).
-
-### What Surprised Me During Testing
-
-- **How fragile the scoring is**: Halving the genre weight from 0.45 to 0.225 completely erased the user's stated genre preference from the top 5. Small weight changes have outsized effects.
-- **How much the catalog matters**: The imbalance in the dataset was more impactful than the algorithm. No weighting could make a jazz recommender work well with only one jazz song in the entire catalog.
-- **How confident wrong answers look**: The original system's biggest flaw wasn't a crash or error message — it was that it returned beautiful, ranked output even when it had silently ignored the user's core request. Robustness isn't just about not crashing; it's about explaining when you're unsure.
-
-### Collaboration with AI (Claude)
-
-**Helpful suggestion:**
-When I was building the guardrail detection logic, Claude suggested pre-computing the guardrail findings (missing genre, contradictory prefs, etc.) *before* sending the data to the LLM for evaluation. Instead of asking Claude to figure out what went wrong from raw numbers alone, I would tell it explicitly: "Here are four specific problems I detected." This made Claude's diagnoses more accurate and focused. I used this approach in my `evaluate_recommendations()` function, and it significantly improved output quality.
-
-**Flawed suggestion:**
-Claude initially recommended replacing the deterministic scoring pipeline entirely with an LLM-based ranker. Its reasoning: "LLMs can understand nuance better than weighted formulas." But this was wrong for my project because:
-1. LLM-based ranking would make the system non-deterministic and harder to debug
-2. The weighted pipeline is fast and testable
-3. The real problem wasn't the scoring algorithm—it was lack of transparency about failures (which the guardrails solve)
-
-I chose to keep the deterministic pipeline and add the AI reliability layer instead. This was a better fit for the actual problem I was solving.
+**For detailed reflection on biases, limitations, AI collaboration, and testing insights, see [model_card.md](model_card.md#9-personal-reflection-ai-responsibility--collaboration).**
 
 ---
 
