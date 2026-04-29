@@ -35,6 +35,28 @@ Song catalog ──┘                                                          
 
 ---
 
+## Guardrails: Detecting Silent Failures
+
+**What are guardrails?**
+Guardrails are safety mechanisms that detect when a system is likely failing or producing misleading output. Unlike error handling (which stops execution), guardrails are *detectors* — they flag problems and let the system explain what went wrong, rather than blocking the output entirely.
+
+**Why guardrails matter in VibeMatch:**
+The original system's biggest flaw was that it failed *silently*. A user could ask for jazz, get zero jazz songs back, and have no way of knowing the system had failed. The output looked confident and complete, but it was wrong. Guardrails surface these hidden failures before they reach the user.
+
+**Four guardrails implemented:**
+
+1. **Missing genre** — If a user requests a genre that doesn't exist in the catalog (e.g., "bossa nova" when only "pop," "rock," "jazz" are available), genre match will always be 0. The guardrail flags this so Claude can tell the user: "You asked for X, but X isn't in our catalog."
+
+2. **Contradictory numeric preferences** — If a user sets both high target energy (0.8+) *and* high target acousticness (0.8+), these signals physically contradict each other (energetic songs are typically less acoustic). The guardrail detects this contradiction, and Claude can suggest lowering one value.
+
+3. **Thin results** — If fewer than 3 songs clear the 0.40 score threshold, the output is too sparse to be reliable. The guardrail flags this, signaling that the user's preferences are too strict or the catalog is too limited.
+
+4. **Silent genre override** — If the user asks for a genre that *does* exist in the catalog, but none of the top-5 results actually match that genre (because mood/energy/acousticness signals outweighed it), the guardrail detects the mismatch. Claude then explains that the user's other preferences were so strong they overrode their genre choice.
+
+Each guardrail is computed *before* the API call, so Claude receives specific, pre-vetted problems to diagnose rather than having to guess what went wrong from raw numbers.
+
+---
+
 ## Setup Instructions
 
 ### Prerequisites
@@ -193,11 +215,44 @@ Hardcoding credentials in source code is a security risk — anyone who forks or
 
 ---
 
-## Reflection
+## Reflection: AI Responsibility & Collaboration
 
 Building VibeMatch taught me that the hardest problems in AI systems are not the ones that produce errors — they are the ones that produce wrong answers confidently. The original recommender never crashed. It always returned a full list. It looked like it was working. But Profile 4 showed that a system can be functionally correct (it followed all its rules) and still completely fail the user (zero jazz songs for a jazz fan). Adding the AI reliability layer was a direct response to that insight: if the system cannot always catch its own blind spots, at least it can explain them.
 
-This also changed how I think about real platforms like Spotify or Apple Music. When a recommendation feels slightly off, it is probably not a bug — it is the system doing exactly what it was designed to do, given whatever data and weights happen to be there. The math is working. The catalog or the weighting just doesn't reflect what the user actually wants.
+### Limitations & Biases
+
+- **Dataset imbalance**: Eight of twenty-five songs are R&B; jazz, blues, classical, and reggae each have one song. This skew means R&B users will always get better recommendations than jazz fans, regardless of how good the algorithm is. Dataset quality shapes the output before the weights ever run.
+- **Binary genre/mood matching**: My system uses exact string matching (genre == "jazz"). In reality, genres are fuzzy categories. A user who likes "indie rock" probably also likes "alternative rock," but my system scores both as 0. Fuzzy matching would help, but adds complexity.
+- **Energy floor problem**: The lowest-energy songs in the catalog still have energy ~0.35. A user setting `target_energy: 0.0` (very chill) can never score perfectly on the energy signal because the songs aren't actually that low-energy. Real datasets would need broader ranges.
+- **Catalog size**: Twenty-five songs is too small. Real recommenders have millions of tracks, which smooths out imbalances and gives users more actual choice.
+
+### Potential for Misuse & Prevention
+
+- **Filter bubble risk**: If weighted heavily toward one signal (e.g., 80% genre), the system could trap users in narrow musical niches by always recommending the same few artists.
+  - *Prevention*: Keep weights balanced and document them clearly (I did this). Encourage users to experiment with different preference profiles.
+- **Exploitative targeting**: An AI recommender could learn that certain demographic groups will pay for "premium" music subscriptions and deliberately recommend lower-quality songs to non-premium users.
+  - *Prevention*: Audit recommendation fairness across user segments. Don't condition weights on user demographics.
+- **Silent manipulation**: The original system did this unintentionally—users requesting jazz got zero jazz with no warning. Guardrails catch and surface this.
+  - *Prevention*: Always explain failures, never silently fall back. Use a reliability layer (what this project does).
+
+### What Surprised Me During Testing
+
+- **How fragile the scoring is**: Halving the genre weight from 0.45 to 0.225 completely erased the user's stated genre preference from the top 5. Small weight changes have outsized effects.
+- **How much the catalog matters**: The imbalance in the dataset was more impactful than the algorithm. No weighting could make a jazz recommender work well with only one jazz song in the entire catalog.
+- **How confident wrong answers look**: The original system's biggest flaw wasn't a crash or error message — it was that it returned beautiful, ranked output even when it had silently ignored the user's core request. Robustness isn't just about not crashing; it's about explaining when you're unsure.
+
+### Collaboration with AI (Claude)
+
+**Helpful suggestion:**
+When I was building the guardrail detection logic, Claude suggested pre-computing the guardrail findings (missing genre, contradictory prefs, etc.) *before* sending the data to the LLM for evaluation. Instead of asking Claude to figure out what went wrong from raw numbers alone, I would tell it explicitly: "Here are four specific problems I detected." This made Claude's diagnoses more accurate and focused. I used this approach in my `evaluate_recommendations()` function, and it significantly improved output quality.
+
+**Flawed suggestion:**
+Claude initially recommended replacing the deterministic scoring pipeline entirely with an LLM-based ranker. Its reasoning: "LLMs can understand nuance better than weighted formulas." But this was wrong for my project because:
+1. LLM-based ranking would make the system non-deterministic and harder to debug
+2. The weighted pipeline is fast and testable
+3. The real problem wasn't the scoring algorithm—it was lack of transparency about failures (which the guardrails solve)
+
+I chose to keep the deterministic pipeline and add the AI reliability layer instead. This was a better fit for the actual problem I was solving.
 
 ---
 
