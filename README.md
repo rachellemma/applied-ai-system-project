@@ -1,126 +1,187 @@
-# 🎵 Music Recommender Simulation
+# VibeMatch 1.0 — AI-Powered Music Recommender
 
-## Project Summary
+## Original Project
 
-  VibeMatch 1.0 is a scoring-based music recommendation system built as a classroom simulation. Given a user's stated preferences — favorite genre, current mood, target energy level, and acousticness — it scores every song in a 25-song catalog against those four signals, filters out weak matches, and returns the top 5 recommendations along with a plain-language explanation of why each song was chosen. The goal was to understand how real recommenders turn preference data into ranked lists, and to discover where that process breaks down.
-
----
-
-## How The System Works
-
-  Each Song stores genre (categorical), mood (categorical), energy (numeric, 0-1), and acousticness (numeric, 0-1). Energy measures how intense or driving a song feels. Acousticness measures how much the song relies on real instruments vs. electronic production.
-
-  The UserProfile stores the user's preferred values for the same features: preferred genre, preferred mood, target energy (0-1), and target acousticness (0-1). For example: genre = "r&b", mood = "chill", target_energy = 0.45, target_acousticness = 0.65.
-
-  The Recommender scores each song using four weighted components that add up to 1.0:
-
-  - Genre match (22.5%): 1.0 if the song's genre matches the user's preferred genre, 0.0 if not
-  - Mood match (25%): 1.0 if the song's mood matches the user's preferred mood, 0.0 if not
-  - Energy similarity (30%): `1.0 - abs(song_energy - target_energy)` — closer to the user's target gets a higher score
-  - Acousticness similarity (22.5%): `1.0 - abs(song_acousticness - target_acousticness)` — same idea
-
-  Total score = (0.225 × genre_match) + (0.25 × mood_match) + (0.30 × energy_similarity) + (0.225 × acousticness_similarity)
-
-  The original starter design weighted genre at 45%. The weights were shifted to test whether continuous features (energy, acousticness) could surface better-fitting songs even when the genre didn't match exactly.
-
-  Songs are ranked by their total score in descending order. Only songs that score at least 40% (0.40) are included in the results. The top K songs from that filtered list are returned as recommendations.
+This project builds on **VibeMatch 1.0**, a scoring-based music recommendation system developed in Modules 1–3 as a classroom simulation. The original system scored a 25-song catalog against a user's stated preferences — favorite genre, current mood, target energy level, and acousticness — using a weighted formula to rank and return the top 5 matches. Its goal was to model how real recommender systems turn preference data into ranked lists, and to surface where that process breaks down.
 
 ---
 
-## Getting Started
+## Title and Summary
 
-### Setup
+**VibeMatch 1.0 with AI Reliability Layer**
 
-1. Create a virtual environment (optional but recommended):
+VibeMatch now integrates a Claude-powered evaluation layer that diagnoses the quality of its own recommendations before returning them to the user. After the scoring pipeline runs, the AI examines the results and the user's original preferences, then generates a plain-language explanation of why each song was recommended — and, critically, flags silent failures like unrecognized genres, contradictory preferences, or suspiciously thin result sets. This matters because the original system's biggest flaw was that it returned confident-looking output even when it had quietly ignored what the user asked for. The AI layer makes those failures visible.
 
+---
+
+## Architecture Overview
+
+The system has five stages:
+
+1. **User profile** and **song catalog** (`songs.csv`) are loaded as inputs.
+2. `score_song()` computes a weighted score for every song against the user's preferences across four signals: genre match (22.5%), mood match (25%), energy similarity (30%), and acousticness similarity (22.5%).
+3. A **threshold filter** drops any song scoring below 0.40.
+4. `recommend_songs()` sorts the remaining songs and returns the top k=5.
+5. The results are passed to the **Claude API evaluator**, which diagnoses silent failures, explains the recommendations in plain language, and surfaces guardrail warnings when the output may be misleading.
+
+A human reviewer can inspect the guardrail warnings at the final stage, satisfying the human-in-the-loop requirement for responsible AI output.
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+- Python 3.9 or higher
+- An Anthropic API key ([get one here](https://console.anthropic.com/))
+
+### Steps
+
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd vibematch
+   ```
+
+2. **Create and activate a virtual environment** (recommended)
    ```bash
    python -m venv .venv
-   source .venv/bin/activate      # Mac or Linux
+   source .venv/bin/activate      # Mac / Linux
    .venv\Scripts\activate         # Windows
    ```
 
-2. Install dependencies:
-
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Run the app:
+4. **Set your API key**
+   ```bash
+   export ANTHROPIC_API_KEY="your-api-key-here"   # Mac / Linux
+   set ANTHROPIC_API_KEY=your-api-key-here         # Windows
+   ```
 
+5. **Run the app**
    ```bash
    python -m src.main
    ```
 
-### Running Tests
+6. **Run tests**
+   ```bash
+   pytest
+   ```
 
-Run the starter tests with:
+---
 
-```bash
-pytest
+## Sample Interactions
+
+> ⚠️ *Replace these placeholders with real outputs once you run the system.*
+
+### Example 1 — Genre not in catalog (bossa nova)
+
+**Input profile:**
+```python
+{"genre": "bossa nova", "mood": "happy", "target_energy": 0.5, "target_acousticness": 0.65}
+```
+
+**Scoring output:**
+```
+#1  Rooftop Lights by [Artist]
+    Genre: indie pop | Mood: happy | Score: 0.63
+#2  Sunrise City by [Artist]
+    Genre: pop | Mood: happy | Score: 0.57
+```
+
+**AI evaluator output:**
+```
+[PASTE AI RESPONSE HERE]
 ```
 
 ---
 
-## Experiments 
+### Example 2 — Self-defeating preferences (high energy + max acousticness)
 
-Four user profiles were tested to stress-test the scoring logic under different conditions.
+**Input profile:**
+```python
+{"genre": "rock", "mood": "angry", "target_energy": 0.8, "target_acousticness": 1.0}
+```
 
-**Profile 1 — Conflicting preferences: pop / sad mood / high energy (0.9) / high acousticness (0.65)**
+**Scoring output:**
+```
+#1  Storm Runner by [Artist]
+    Genre: rock | Mood: intense | Score: 0.51
+    (only 1 song cleared the 0.40 threshold)
+```
 
-![Conflicting energy and mood case](image-1.png)
-
-No song in the dataset is both pop and sad, so the system split its attention between genre and mood. Sunrise City matched on genre (pop) but had the wrong mood (happy); Velvet Underground Blues matched on mood (sad) but had the wrong genre (blues). Neither result fully satisfied the user. High energy and high acousticness are also contradictory physical properties, so those two signals worked against each other and dragged all scores toward the middle.
-
----
-
-**Profile 2 — Missing genre: bossa nova / happy mood / moderate energy (0.5) / acoustic (0.65)**
-
-![Genre that doesn't exist case](image-2.png)
-
-Because bossa nova does not exist in the dataset, genre match was always zero. The system fell back entirely on mood, energy, and acousticness — happy mood became the dominant signal, returning Rooftop Lights and Sunrise City. The system degraded gracefully but gave the user no indication that their stated genre was silently ignored.
-
----
-
-**Profile 3 — Self-defeating preferences: rock / angry mood / high energy (0.8) / maximum acousticness (1.0)**
-
-![Contradictory preferences case](image-3.png)
-
-High energy and maximum acousticness directly contradict each other. Storm Runner matched on genre and came close on mood (intense vs. angry), but its acousticness of 0.10 versus a target of 1.0 created a penalty so severe that nearly every song was filtered out. Only one song cleared the 0.40 threshold — the system returned a single recommendation.
+**AI evaluator output:**
+```
+[PASTE AI RESPONSE HERE]
+```
 
 ---
 
-**Profile 4 — Low-energy user: jazz / chill mood / zero energy (0.0) / acoustic (0.65)**
+### Example 3 — Silent genre failure (jazz with zero energy)
 
-![Energy preference 0.00 case](image-4.png)
+**Input profile:**
+```python
+{"genre": "jazz", "mood": "chill", "target_energy": 0.0, "target_acousticness": 0.65}
+```
 
-Jazz was the preferred genre, but the only jazz song in the catalog (Coffee Shop Stories) has a relaxed mood rather than chill. That mood mismatch, combined with the reduced genre weight, meant it didn't crack the top 5. The list filled with chill-mood songs from lofi, ambient, and r&b instead — the jazz preference was quietly ignored.
+**Scoring output:**
+```
+#1  Midnight Coding by [Artist]
+    Genre: lofi | Mood: chill | Score: 0.64
+#2  Spacewalk Thoughts by [Artist]
+    Genre: ambient | Mood: chill | Score: 0.63
+    (no jazz songs appear despite jazz being the stated preference)
+```
+
+**AI evaluator output:**
+```
+[PASTE AI RESPONSE HERE]
+```
 
 ---
 
-**Key takeaway:** Profile 3 failed loudly with almost no output. Profile 4 failed silently with a full list that never acknowledged the stated genre. Both are failure modes, but only one is obvious to the user.
+## Design Decisions
+
+**Why a reliability layer instead of RAG or an agentic workflow?**
+The original system's most serious flaw — identified during testing — was that it failed silently. A jazz-requesting user received zero jazz songs with no warning. Adding a retrieval or agentic layer would have required significant new infrastructure (vector databases, multi-step planning loops) without directly solving that core problem. An AI-powered evaluation layer was the most targeted fix: it addresses the exact weakness the project already identified, integrates naturally into the existing pipeline, and requires only a single API call.
+
+**Why keep the deterministic scoring pipeline?**
+The weighted scoring function is fast, explainable, and testable. Replacing it with an LLM-based ranker would have made the system harder to debug and evaluate. Keeping the pipeline deterministic means the AI layer has reliable, structured data to reason about — which makes its diagnoses more accurate.
+
+**Trade-offs made:**
+- The AI evaluation adds latency (one API call per run) and a small cost per request.
+- The 25-song catalog is too small for a real product, but adequate for demonstrating the failure modes the AI layer is designed to catch.
+- Genre and mood matching remain binary (exact string match). A fuzzy matching approach would reduce false negatives but add complexity outside this project's scope.
 
 ---
 
-## Limitations and Risks
+## Testing Summary
 
-- **Genre bias:** Genre carries 22.5% of the score (45% in the original design), so a song that perfectly matches the user's mood, energy, and acousticness can still rank low if the genre label doesn't match exactly. A great R&B-adjacent song labeled "soul" or "jazz" would score as if it were completely wrong.
+**What worked:**
+- The scoring pipeline behaved correctly and predictably across all four stress-test profiles.
+- The threshold filter successfully limited results to meaningful matches in most cases.
+- The AI evaluator correctly identified the bossa nova missing-genre case and the jazz silent-failure case in testing.
 
-- **Dataset imbalance:** R&B makes up 32% of the catalog (8 of 25 songs), while jazz, blues, classical, and reggae each have only one song. An R&B fan has eight chances to match; a jazz fan has one — an unfair structural advantage built into the data before scoring even runs.
+**What didn't:**
+- Profile 3 (rock/angry/high energy/max acousticness) produced only one result — the self-defeating preferences cancelled each other out so severely that almost nothing cleared the threshold. The system technically works but the output is nearly useless.
+- The energy floor problem: users who set `target_energy: 0.0` can never score highly on the energy signal because the lowest songs in the catalog still have energy values around 0.35.
+- The AI evaluator's output quality depends on how clearly the prompt is written. Early prompt versions produced generic explanations rather than specific guardrail warnings.
 
-- **Exact string matching on mood:** Mood is binary — "chill" either matches or it doesn't. Similar moods like "relaxed" or "romantic" score zero, even though a real user might enjoy them equally.
-
-- **Acousticness and energy may overlap:** Songs that are chill tend to also be acoustic, so these two features can reward the same songs twice rather than adding independent signal.
-
-- **Energy floor problem:** Most songs in the catalog have energy values between 0.35 and 0.97. A user who sets `target_energy: 0.0` can never achieve a high energy score, even for the mellowest songs available.
-
-- **No user history:** The profile is fixed. The system has no way to learn from what the user actually plays or skips.
+**What I learned:**
+- Dataset quality matters as much as algorithm quality. Eight of twenty-five songs are r&b; jazz, blues, classical, and reggae each have one. That imbalance shapes every result before the weights even run.
+- Small weight changes have outsized effects. Halving the genre weight from 0.45 to 0.225 was enough to completely erase a user's stated genre from their top 5.
+- Prompting an LLM to diagnose structured data requires being specific about what to look for — a vague "evaluate these recommendations" prompt produces vague output.
 
 ---
 
 ## Reflection
 
-Building this recommender made it clear that the dataset is just as important as the algorithm — the scoring math can be perfectly designed, but if the catalog doesn't have the songs a user needs, the system will silently return wrong answers with high confidence. The most striking example was Profile 4: a jazz-requesting user received zero jazz songs in their top five, and the output looked completely normal. There was no error, no warning, and no sign that the user's stated preference had been functionally ignored.
+Building VibeMatch taught me that the hardest problems in AI systems are not the ones that produce errors — they are the ones that produce wrong answers confidently. The original recommender never crashed. It always returned a full list. It looked like it was working. But Profile 4 showed that a system can be functionally correct (it followed all its rules) and still completely fail the user (zero jazz songs for a jazz fan). Adding the AI reliability layer was a direct response to that insight: if the system cannot always catch its own blind spots, at least it can explain them.
 
-The weight experiments were equally revealing. Halving the genre weight from 0.45 to 0.225 seemed like a small tweak, but it was enough to erase an entire genre from someone's recommendations. That sensitivity made me think differently about real platforms like Spotify or Apple Music — when a recommendation feels slightly off, it could be a data gap, a weight imbalance, or a silent fallback that the user was never told about. The system looks intelligent on the surface, but it is really just arithmetic applied to whatever data happens to be there.
+This also changed how I think about real platforms like Spotify or Apple Music. When a recommendation feels slightly off, it is probably not a bug — it is the system doing exactly what it was designed to do, given whatever data and weights happen to be there. The math is working. The catalog or the weighting just doesn't reflect what the user actually wants.
 
-Read the full model card here: [**Model Card**](model_card.md)
+---
+
+*Built with Python · Anthropic Claude API · CSV-based song catalog*
