@@ -3,7 +3,7 @@ from pathlib import Path
 from src.recommender import load_songs, recommend_songs
 from src.evaluator import evaluate_recommendations
 
-DATA_PATH = Path(__file__).parent / "data" / "songs.csv"
+DATA_PATH = Path(__file__).parent.parent / "data" / "songs.csv"
 
 st.set_page_config(page_title="VibeMatch 1.0", page_icon="🎵", layout="centered")
 

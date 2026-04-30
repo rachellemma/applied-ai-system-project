@@ -32,13 +32,11 @@ def main() -> None:
             print(f"      - {reason}")
     print("\n" + "=" * 40)
 
-    # --- AI Reliability Layer ---
-    # TEMPORARILY DISABLED - waiting for CodePath API key
-    # print("\n  AI Evaluation")
-    # print("=" * 40)
-    # diagnosis = evaluate_recommendations(user_prefs, recommendations, songs)
-    # print(f"\n{diagnosis}\n")
-    # print("=" * 40)
+    print("\n  AI Evaluation")
+    print("=" * 40)
+    diagnosis = evaluate_recommendations(user_prefs, recommendations, songs)
+    print(f"\n{diagnosis}\n")
+    print("=" * 40)
 
 
 if __name__ == "__main__":
