@@ -105,7 +105,7 @@ Be direct and specific. Do not repeat the song list. Do not use bullet points.""
         logger.info("Calling Claude API for recommendation evaluation...")
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5",
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
         )

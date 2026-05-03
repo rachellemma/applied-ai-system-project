@@ -103,75 +103,95 @@ Each guardrail is computed *before* the API call, so Claude receives specific, p
 
 ## Sample Interactions
 
-### Example 1 — Missing genre (bossa nova)
+### Example 1 — Conflicting Preferences (Pop/Sad + High Energy + Acousticness)
+
+**Input profile:**
+```python
+{"genre": "pop", "mood": "sad", "target_energy": 0.9, "target_acousticness": 0.65}
+```
+
+**Top recommendations:**
+
+| # | Title | Artist | Genre | Mood | Score | Reasoning |
+|---|-------|--------|-------|------|-------|-----------|
+| 1 | Sunrise City | Neon Echo | pop | happy | 0.62 | genre match, high energy match, but mood mismatch |
+| 2 | Velvet Underground Blues | Mara Hollis | blues | sad | 0.62 | mood match, but genre mismatch & energy too low (0.44) |
+| 3 | Faded Love | Mara Hollis | r&b | sad | 0.61 | mood match & acousticness match, but genre mismatch & low energy |
+| 4 | Gym Hero | Max Pulse | pop | intense | 0.61 | genre match & energy match, but mood mismatch & no acousticness |
+| 5 | Rooftop Lights | Indigo Parade | indie pop | happy | 0.42 | energy match, but multiple signal mismatches |
+
+**AI Evaluator Diagnosis:**
+
+> The scoring system is recommending songs by partially matching your preferences, but the results reveal a fundamental problem: you've requested a combination that may not exist in the music library—high-energy (0.9) pop songs that are also sad and highly acoustic (0.65). The top recommendations either match genre and energy while missing mood and acousticness (like "Sunrise City" and "Gym Hero"), or they match mood and acousticness while having much lower energy than you requested (like "Velvet Underground Blues" at 0.44 energy). The algorithm is essentially compromising across incompatible attributes because sad, acoustic songs tend to be low-energy, while 0.9 energy typically indicates upbeat, electronic production. To get more coherent results, consider either lowering your target energy to around 0.3-0.5 if you want sad acoustic pop, or changing the mood to "happy" or "bittersweet" if you truly want high-energy music.
+
+---
+
+### Example 2 — Missing Genre (Bossa Nova)
 
 **Input profile:**
 ```python
 {"genre": "bossa nova", "mood": "happy", "target_energy": 0.5, "target_acousticness": 0.65}
 ```
 
-**Scoring output:**
-```
-#1  Rooftop Lights by Neon Dusk
-    Genre: indie pop | Mood: happy | Score: 0.63
-#2  Sunrise City by The Coastlines
-    Genre: pop | Mood: happy | Score: 0.57
-```
+**Top recommendations:**
 
-**AI evaluator output:**
-```
-[PASTE AI OUTPUT HERE — run with bossa nova profile and copy the diagnosis block]
-```
+| # | Title | Artist | Genre | Mood | Score | Reasoning |
+|---|-------|--------|-------|------|-------|-----------|
+| 1 | Rooftop Lights | Indigo Parade | indie pop | happy | 0.63 | mood match, energy & acousticness close to target |
+| 2 | Sunrise City | Neon Echo | pop | happy | 0.57 | mood match, but lower acousticness match |
+| 3 | Kingston Morning | Irie Collective | reggae | relaxed | 0.50 | good energy & acousticness match, mood mismatch |
+| 4 | Golden Hour | Talia Monroe | r&b | chill | 0.49 | energy & acousticness close, but no mood match |
+| 5 | Midnight Coding | LoRoom | lofi | chill | 0.49 | energy & acousticness close, but no mood match |
+
+**AI Evaluator Diagnosis:**
+
+> The recommendation system prioritized songs that matched your "happy" mood and had energy/acousticness levels close to your targets, which is why upbeat indie pop and pop tracks dominated the top results. However, there's a critical issue: bossa nova doesn't exist in the music catalog, so the system completely ignored your genre preference and instead ranked songs purely on mood and numeric audio features. This explains why you're seeing indie pop, reggae, and R&B instead of the Brazilian jazz-influenced sound you wanted. To get better results, try selecting "jazz" as your genre since it's the closest available style to bossa nova, or browse the available genres (pop, reggae, jazz, lofi, r&b, indie pop, etc.) to find the best match for the laid-back, acoustic sound you're seeking.
 
 ---
 
-### Example 2 — Self-defeating preferences (high energy + max acousticness)
+### Example 3 — Self-Defeating Preferences (High Energy + Max Acousticness)
 
 **Input profile:**
 ```python
 {"genre": "rock", "mood": "angry", "target_energy": 0.8, "target_acousticness": 1.0}
 ```
 
-**Scoring output:**
-```
-#1  Storm Runner by Voltage Kings
-    Genre: rock | Mood: intense | Score: 0.51
-    (only 1 song cleared the 0.40 threshold)
-```
+**Top recommendations:**
 
-**AI evaluator output:**
-```
-[PASTE AI OUTPUT HERE — run with rock/angry profile and copy the diagnosis block]
-```
+| # | Title | Artist | Genre | Mood | Score | Reasoning |
+|---|-------|--------|-------|------|-------|-----------|
+| 1 | Storm Runner | Voltline | rock | intense | 0.72 | genre match, excellent energy match, low acousticness (opposite of target) |
+| 2 | Sunrise City | Neon Echo | pop | happy | 0.50 | no genre/mood match, energy & acousticness match |
+| 3 | Crown & Glory | Dex Fontaine | hip hop | energetic | 0.50 | no genre/mood match, energy & acousticness match |
+| 4 | Night Drive Loop | Neon Echo | synthwave | moody | 0.48 | no genre/mood match, energy & acousticness match |
+| 5 | Soulfire | Neon Echo | r&b | energetic | 0.48 | no genre/mood match, energy & acousticness match |
+
+**AI Evaluator Diagnosis:**
+
+> The top recommendation "Storm Runner" scored well because it directly matches your rock genre preference and closely aligns with both your energy target (0.91 vs 0.8) and acousticness target (0.1 vs 0.1). However, the remaining four recommendations are problematic—they span pop, hip hop, synthwave, and r&b genres with moods like "happy" and "energetic" rather than the "angry" mood you requested, suggesting the scoring system is heavily weighted toward energy and acousticness matching while largely ignoring genre and mood preferences. This explains why songs 2-5 have identical or similar scores around 0.48-0.50 despite being completely off-genre and off-mood. To get better results, I'd recommend being more flexible with your energy or acousticness targets (perhaps widening the acceptable range) so the system can prioritize finding more rock songs with angry moods, which appear to be the features that matter most to your listening experience.
 
 ---
 
-### Example 3 — Silent genre failure (jazz with zero energy)
+### Example 4 — Silent Genre Failure (Jazz with Zero Energy)
 
 **Input profile:**
 ```python
 {"genre": "jazz", "mood": "chill", "target_energy": 0.0, "target_acousticness": 0.65}
 ```
 
-**Scoring output:**
-```
-#1  Midnight Coding by LoRoom
-    Genre: lofi | Mood: chill | Score: 0.64
-#2  Spacewalk Thoughts by Orbit Bloom
-    Genre: ambient | Mood: chill | Score: 0.63
-#3  Golden Hour by Talia Monroe
-    Genre: r&b | Mood: chill | Score: 0.62
-#4  Library Rain by Paper Lanterns
-    Genre: lofi | Mood: chill | Score: 0.62
-#5  Late Nights by Indigo Parade
-    Genre: r&b | Mood: chill | Score: 0.60
-    (no jazz songs appear despite jazz being the stated preference)
-```
+**Top recommendations:**
 
-**AI evaluator output:**
-```
-[PASTE AI OUTPUT HERE — run with jazz profile and copy the diagnosis block]
-```
+| # | Title | Artist | Genre | Mood | Score | Reasoning |
+|---|-------|--------|-------|------|-------|-----------|
+| 1 | Midnight Coding | LoRoom | lofi | chill | 0.64 | mood match, low energy match, good acousticness |
+| 2 | Spacewalk Thoughts | Orbit Bloom | ambient | chill | 0.63 | mood match, excellent energy match (0.28), high acousticness |
+| 3 | Golden Hour | Talia Monroe | r&b | chill | 0.62 | mood match, low energy match, good acousticness |
+| 4 | Library Rain | Paper Lanterns | lofi | chill | 0.62 | mood match, low energy match, high acousticness |
+| 5 | Late Nights | Indigo Parade | r&b | chill | 0.60 | mood match, low energy match, moderate acousticness |
+
+**AI Evaluator Diagnosis:**
+
+> The recommended songs all match your desired "chill" mood and have relatively low energy levels, which explains why they scored well in the system. However, there's a significant problem: you explicitly requested jazz, but the algorithm returned only lofi, ambient, and R&B tracks instead. This happened because the scoring pipeline heavily weighted the mood and audio features (energy and acousticness) while apparently treating genre as a lower priority or failing to filter by it entirely. To get jazz recommendations that still match your vibe, I'd suggest either making your energy target slightly higher (around 0.2-0.3 to capture more jazz tracks) or explicitly searching for "chill jazz" as a combined genre-mood query if the system supports that option.
 
 ---
 
