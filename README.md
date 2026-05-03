@@ -226,6 +226,8 @@ Hardcoding credentials in source code is a security risk — anyone who forks or
 - Profile 3 (rock/angry/high energy/max acousticness) produced only one result — the self-defeating preferences cancelled each other out so severely that almost nothing cleared the threshold.
 - The energy floor problem: users who set `target_energy: 0.0` can never score highly on the energy signal because the lowest songs in the catalog still have energy values around 0.35.
 - Initial import errors (`ModuleNotFoundError: No module named 'recommender'`) required changing bare imports to `src.recommender` and `src.evaluator` to reflect the package structure.
+- Connecting the Claude API was very difficult, I ended up buying credit but
+I tried using Google Gemeni at one point, but ran out of tokens. 
 
 **What I learned:**
 - Dataset quality matters as much as algorithm quality. Eight of twenty-five songs are r&b; jazz, blues, classical, and reggae each have one. That imbalance shapes every result before the weights even run.
@@ -237,7 +239,7 @@ Hardcoding credentials in source code is a security risk — anyone who forks or
 
 ## Reflection
 
-Building VibeMatch taught me that the hardest problems in AI systems are not the ones that produce errors — they are the ones that produce wrong answers confidently. The original recommender never crashed. It always returned a full list. It looked like it was working. But Profile 4 showed that a system can be functionally correct (it followed all its rules) and still completely fail the user (zero jazz songs for a jazz fan). Adding the AI reliability layer was a direct response to that insight: if the system cannot always catch its own blind spots, at least it can explain them.
+Building VibeMatch taught me that the hardest problems in AI systems are not the ones that produce errors, they are the ones that produce wrong answers confidently. The original recommender never crashed. It always returned a full list. It looked like it was working. But Profile 4 showed that a system can be functionally correct (it followed all its rules) and still completely fail the user (zero jazz songs for a jazz fan). Adding the AI reliability layer was a direct response to that insight: if the system cannot always catch its own blind spots, at least it can explain them.
 
 **For detailed reflection on biases, limitations, AI collaboration, and testing insights, see [model_card.md](model_card.md#9-personal-reflection-ai-responsibility--collaboration).**
 
@@ -264,3 +266,6 @@ ai110-module3show-musicrecommendersimulation-starter/
 ---
 
 *Built with Python · Anthropic Claude API · CSV-based song catalog*
+
+
+Demo video: https://www.loom.com/share/b578b0e3be10441e8415532b38f26b91 
